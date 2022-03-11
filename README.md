@@ -1,0 +1,1 @@
+[![.github/workflows/update.yml](https://github.com/afraine-braintrust/platform-monitoring/actions/workflows/update.yml/badge.svg)](https://github.com/afraine-braintrust/platform-monitoring/actions/workflows/update.yml)
