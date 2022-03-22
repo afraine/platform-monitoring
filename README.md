@@ -1,4 +1,5 @@
 <div align="center">
+  <h3 align="center">Custom Social Media Platform Monitoring</h3>
   <p align="center">
     A project for spinning up a customized and flexible Social Media Monitoring Dashboard
     <br />
