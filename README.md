@@ -3,11 +3,11 @@
   <p align="center">
     A project for spinning up a customized and flexible Social Media Monitoring Dashboard
     <br />
-    <a href="https://github.com/othneildrew/Best-README-Template">View Demo</a>
+    <a href="" target="_blank">View Demo</a>
     ·
-    <a href="https://github.com/othneildrew/Best-README-Template/issues">Report Bug</a>
+    <a href="https://github.com/afraine-braintrust/platform-monitoring/issues">Report Bug</a>
     ·
-    <a href="https://github.com/othneildrew/Best-README-Template/issues">Request Feature</a>
+    <a href="https://github.com/afraine-braintrust/platform-monitoring/issues">Request Feature</a>
   </p>
 </div>
 
@@ -42,6 +42,18 @@
 ## About The Project
 
 There are many tools out there to monitor and optimize your Social Media activity. However, they all come with a slew of restrictions, your data is siloed, and they are often quite expensive.
+
+<p align="right">(<a href="#top">back to top</a>)</p>
+
+<!-- Objective -->
+## Objective
+
+The goal of this project is to allow a relatively non-technical marketer to spin up a custom social media monitoring dashboard using a few well-known tools and their own API keys.
+
+<p align="right">(<a href="#top">back to top</a>)</p>
+
+<!-- Getting Started -->
+## Getting Started
 
 The goal of this project is to allow a relatively non-technical marketer to spin up a custom social media monitoring dashboard using a few well-known tools and their own API keys.
 
