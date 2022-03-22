@@ -40,3 +40,9 @@
 
 <!-- ABOUT THE PROJECT -->
 ## About The Project
+
+There are many tools out there to monitor and optimize your Social Media activity. However, they all come with a slew of restrictions, your data is siloed, and they are often quite expensive.
+
+The goal of this project is to allow a relatively non-technical marketer to spin up a custom social media monitoring dashboard using a few well-known tools and their own API keys.
+
+<p align="right">(<a href="#top">back to top</a>)</p>
