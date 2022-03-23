@@ -22,7 +22,7 @@ def update():
     """
 
     success, target_twitter_handles, listening_twitter_handles, listening_twitter_topics, target_youtube_channels = gsheets.get_inputs()
-
+    num_tweets = 0
     if success:
         time_start = time.time()
         current_recent_tweets_ = gsheets.get_current_data("Recent Tweets")
@@ -35,6 +35,18 @@ def update():
         current_recent_mentions = [x for x in current_recent_mentions_ if datetime.datetime.strptime(x.get('CreatedAt').split("T")[0], "%Y-%m-%d") >= datetime.datetime.now() - datetime.timedelta(hours=30*24)]
         current_twitter_topic_sampling = [x for x in current_twitter_topic_sampling_ if datetime.datetime.strptime(x.get('CreatedAt').split("T")[0], "%Y-%m-%d") >= datetime.datetime.now() - datetime.timedelta(hours=7*24)]
         
+        unique_current_recent_tweets_ids = list(set([x.get("TweetId") for x in current_recent_tweets]))
+        unique_current_recent_mentions_ids = list(set([x.get("TweetId") for x in current_recent_mentions]))
+        unique_current_twitter_topic_sampling_ids = list(set([x.get("TweetId") for x in current_twitter_topic_sampling]))
+
+        current_recent_tweets = [[y for y in current_recent_tweets if x == y.get("TweetId")][0] for x in unique_current_recent_tweets_ids]
+        current_recent_tweets.sort(key=lambda item:item['CreatedAt'], reverse=True)
+
+        current_recent_mentions = [[y for y in current_recent_mentions if x == y.get("TweetId")][0] for x in unique_current_recent_mentions_ids]
+        current_recent_mentions.sort(key=lambda item:item['CreatedAt'], reverse=True)
+
+        current_twitter_topic_sampling = [[y for y in current_twitter_topic_sampling if x == y.get("TweetId")][0] for x in unique_current_twitter_topic_sampling_ids]
+        current_twitter_topic_sampling.sort(key=lambda item:item['CreatedAt'], reverse=True)
         
         #####Update Twitter metrics for previously acquired tweets within the last 90 days
         # recent_tweets_to_update = [x for x in current_recent_tweets if datetime.datetime.strptime(x.get("CreatedAt").split("T")[0], "%Y-%m-%d") > datetime.datetime.now() - datetime.timedelta(days=30)]
@@ -62,10 +74,12 @@ def update():
             twitter_public_metrics_ = twitter_public_metrics(tth)
             new_public_metrics_to_add.append(twitter_public_metrics_)
             print("getting recent tweets for : {} ({} min)".format(tth, int((time.time() - time_start)/60)))
-            recent_tweets_, next_token = recent_tweets(tth, None, True)
+            recent_tweets_, next_token = recent_tweets(tth, None, True, True, True)
+            num_tweets += len(recent_tweets_)
             new_tweets_to_add.append(recent_tweets_)
             print("getting recent mentions for : {} ({} min)".format(tth, int((time.time() - time_start)/60)))
             recent_twitter_mentions_ = recent_twitter_mentions(tth, True)
+            num_tweets += len(recent_twitter_mentions_)
             recent_twitter_mentions_sentiment = [sentiment(x.get("text")) for x in recent_twitter_mentions_]
             for j in range(len(recent_twitter_mentions_)):
                 recent_twitter_mentions_[j]['sentiment'] = recent_twitter_mentions_sentiment[j]
@@ -75,12 +89,12 @@ def update():
         for t in listening_twitter_topics[:100]:
             print("getting recent tweets for topic: {} ({} min)".format(t, int((time.time() - time_start)/60)))
             recent_tweets_topics_ = recent_tweets_keyword(t, True)
+            num_tweets += len(recent_tweets_topics_)
             recent_tweets_topics_sentiment = [sentiment(x.get("text")) for x in recent_tweets_topics_]
             for j in range(len(recent_tweets_topics_)):
                 recent_tweets_topics_[j]['sentiment'] = recent_tweets_topics_sentiment[j]
             new_tweets_on_topic_to_add.append(recent_tweets_topics_)
             recent_tweets_topics_.sort(key=lambda item:item['created_at'])
-            diffs = [datetime.datetime.strptime(recent_tweets_topics_[x+1].get("created_at"), "%Y-%m-%dT%H:%M:%S.%fZ") - datetime.datetime.strptime(recent_tweets_topics_[x].get("created_at"), "%Y-%m-%dT%H:%M:%S.%fZ") for x in range(len(recent_tweets_topics_)-1)]
             authors = [x.get("username") for x in recent_tweets_topics_]
             unique_authors = list(set(authors))
             author_counts = [{"count": len([x for x in authors if x == y]), "author": y} for y in unique_authors]
@@ -89,8 +103,6 @@ def update():
             topic_analysis.append({
                 "topic": t,
                 "date": str(datetime.datetime.now()).split(".")[0],
-                "avg_intertweet_time": sum([x.seconds for x in diffs])/len(diffs) if len(diffs) > 0 else 0,
-                "tweet_velocity_per_minute": len(diffs)*60/(max([x.seconds for x in diffs])-min([x.seconds for x in diffs])),
                 "top_accounts_by_number": [x for x in author_counts if x.get("count") > 1][:10],
                 "keyword_counts_hourly": keyword_counts,
                 "average_sentiment": sum(recent_tweets_topics_sentiment)/len(recent_tweets_topics_sentiment) if len(recent_tweets_topics_sentiment) > 0 else 0
@@ -99,7 +111,8 @@ def update():
         """tweets for target listening accounts"""
         for t in listening_twitter_handles[:100]:
             print("getting recent tweets for account: {} ({} min)".format(t, int((time.time() - time_start)/60)))
-            recent_tweets_accounts_, next_token = recent_tweets(t, None, True)
+            recent_tweets_accounts_, next_token = recent_tweets(t, None, True, True, True)
+            num_tweets += len(recent_tweets_accounts_)
             new_tweets_to_add.append(recent_tweets_accounts_)
             for j in range(len(recent_tweets_accounts_)):
                 if int(recent_tweets_accounts_[j].get("id")) not in [x.get("TweetId") for x in current_recent_tweets]:
@@ -116,10 +129,10 @@ def update():
                         if "mentions" in recent_tweets_accounts_[j].get("entities"):
                             listening_account_analysis[-1]['mentions'] = [x.get("username") for x in recent_tweets_accounts_[j].get("entities").get("mentions")]
 
-        all_hashtags = [j for i in [x.get("hashtags") for x in listening_account_analysis] for j in i]
-        unique_hashtags = list(set(all_hashtags))
-        hashtag_counts = [{"count": len([x for x in all_hashtags if x == y]), "topic": y, "type": "hashtag"} for y in unique_hashtags]
-        hashtag_counts.sort(key=lambda item:item['count'], reverse=True)
+        # all_hashtags = [j for i in [x.get("hashtags") for x in listening_account_analysis] for j in i]
+        # unique_hashtags = list(set(all_hashtags))
+        # hashtag_counts = [{"count": len([x for x in all_hashtags if x == y]), "topic": y, "type": "hashtag"} for y in unique_hashtags]
+        # hashtag_counts.sort(key=lambda item:item['count'], reverse=True)
 
         new_tweets_to_add_ = [j for i in new_tweets_to_add for j in i]
         new_mentions_to_add_ = [j for i in new_mentions_to_add for j in i]
@@ -134,7 +147,7 @@ def update():
         print("adding topical tweets to sheets")  
         res = gsheets.add_new_topics(current_twitter_topic_sampling + [x for x in new_tweets_on_topic_to_add_ if int(x.get("id")) not in [y.get("TweetId") for y in current_twitter_topic_sampling]])
         print("adding topic analysis")
-        res = gsheets.add_topical_analysis(topic_analysis)
+        res = gsheets.add_topic_analysis(topic_analysis)
         # print("adding listening account analysis - hashtags")
         # res = gsheets.add_listening_account_hashtag_counts(hashtag_counts, len(listening_account_analysis))
         """videos for input youtube channel"""
@@ -152,7 +165,8 @@ def update():
         res = gsheets.add_recent_videos(recent_videos)
         """Youtube account statistics"""
         stats = [{"channel_id": x, "stats": get_youtube_statistics(x)} for x in target_youtube_channels]
-        res = gsheets.add_youtube_stats(stats)
+        res = gsheets.add_youtube_metrics(stats)
+        res = gsheets.add_data_to_log([{"date": str(datetime.datetime.now()).split(".")[0], "num": num_tweets}])
         return True
     else:
         print("could not retrieve input params")
@@ -182,11 +196,18 @@ def twitter_public_metrics(handle):
     else:
         return {"handle": handle}
 
-def recent_tweets(handle, next_token_, only_new):
+def recent_tweets(handle, next_token_, only_new, exclude_RT, exclude_replies):
     """Return the recent tweets from a specific twitter handle"""
     user_id = get_user_id(handle)
     if user_id is not None:
         p = "created_at,context_annotations,entities,in_reply_to_user_id,lang,public_metrics,referenced_tweets,source,text&expansions=author_id,entities.mentions.username,in_reply_to_user_id&user.fields=created_at"
+        exclusions = []
+        if exclude_RT:
+            exclusions.append("retweets")
+        if exclude_replies:
+            exclusions.append("replies")
+        if len(exclusions) > 0:
+            p += "&exclude={}".format(",".join(exclusions))
         if only_new:
             p += "&start_time=" + datetime.datetime.strftime(datetime.datetime.now() - datetime.timedelta(minutes=env.FREQUENCY), "%Y-%m-%dT%H:%M:%SZ")
         if next_token_ is not None:
@@ -252,11 +273,11 @@ def recent_twitter_mentions(handle, only_new):
 
 def recent_tweets_keyword(keyword, only_new):
     """Return a sampling of the recent tweets that mention a specific keyword or phrase"""
-    p = "created_at,context_annotations,entities,in_reply_to_user_id,lang,public_metrics,referenced_tweets,source,text&expansions=author_id,entities.mentions.username,in_reply_to_user_id&user.fields=username,name,created_at&max_results=100"
+    p = "created_at,context_annotations,entities,in_reply_to_user_id,lang,public_metrics,referenced_tweets,source,text&expansions=author_id,entities.mentions.username,in_reply_to_user_id&user.fields=username,name,created_at&max_results=20"
     if only_new:
         p += "&start_time=" + datetime.datetime.strftime(datetime.datetime.now() - datetime.timedelta(minutes=env.FREQUENCY), "%Y-%m-%dT%H:%M:%SZ")
     resp = make_request(
-        "{}tweets/search/recent?query={} -is:retweet&tweet.fields={}".format(
+        "{}tweets/search/recent?query={}%20-is:retweet&tweet.fields={}".format(
             config.endpoints.get("twitter"),
             keyword,
             p
@@ -294,11 +315,19 @@ def recent_tweet_counts(keyword):
     if valid_resp:
         result = json.loads(resp.text)
         if 'data' in result:
-            return result.get("data")
+            if len(result.get("data")) > 0:
+                time_diff = datetime.datetime.strptime(result.get("data")[-1].get("end"), "%Y-%m-%dT%H:%M:%S.%fZ") - datetime.datetime.strptime(result.get("data")[0].get("start"), "%Y-%m-%dT%H:%M:%S.%fZ")
+                if time_diff.seconds > 0:
+                    counts_per_hour = 60*60*sum([x.get("tweet_count") for x in result.get("data")])/(time_diff.seconds)
+                else:
+                    counts_per_hour = 0
+            else:
+                counts_per_hour = 0
+            return counts_per_hour
         else:
-            return []
+            return 0
     else:
-        return []
+        return 0
 
 def get_user_id(handle):
     """Convert a twitter handle to a twitter id"""

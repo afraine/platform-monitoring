@@ -56,7 +56,7 @@ def add_twitter_public_metrics(twitter_public_metrics_):
         print(e)
         return {"success": False, "error": e.args[0]}
 
-def add_topic_analysis(topic_analysis, num):
+def add_topic_analysis(topic_analysis):
     try:
         sheet_name = "Twitter Topic Analysis"
         worksheets = get_sheet().worksheets()
@@ -68,10 +68,9 @@ def add_topic_analysis(topic_analysis, num):
             target_worksheet.append_table([
                 "Date",
                 "Topic",
-                "Average Intertweet Time (s)", 
-                "Tweet Velocity (/min)", 
-                "Number of Tweets Sampled", 
-                "Top Accounts"
+                "Top Accounts",
+                "Average Sentiment",
+                "Keyword Count Hourly"
             ])
         else:
             target_worksheet = get_sheet().worksheet_by_title(sheet_name)
@@ -79,10 +78,9 @@ def add_topic_analysis(topic_analysis, num):
             [
                 r.get("date"),
                 r.get("topic"),
-                r.get("avg_intertweet_time"), 
-                r.get("tweet_velocity_per_minute"), 
-                num, 
-                ",".join([x.get("author") for x in r.get("top_accounts_by_number")])
+                ",".join([x.get("author") for x in r.get("top_accounts_by_number")]),
+                r.get("average_sentiment"),
+                r.get("keyword_counts_hourly")
             ] for r in topic_analysis
         ])
         return {"success": True}
@@ -164,29 +162,29 @@ def add_new_tweets(recent_tweets_):
         worksheets = get_sheet().worksheets()
         sheet_names = [x.title for x in worksheets]
         target_worksheet_ = [x for x in worksheets if x.title == sheet_name]
+        recs = [
+            "Date",
+            "CreatedAt",
+            "Handle",
+            "UserId",
+            "Language",
+            "TweetId",
+            "Retweets",
+            "Replies",
+            "Likes",
+            "Quotes",
+            "Tweet",
+            "Mentions",
+            "URLs",
+            "Hashtags",
+            "IsRetweet"
+        ]
         if len(target_worksheet_) == 0:
             ###create new worksheet
             target_worksheet = get_sheet().add_worksheet(sheet_name)
-            target_worksheet.append_table([
-                "Date",
-                "CreatedAt",
-                "Handle",
-                "UserId",
-                "Language",
-                "TweetId",
-                "Retweets",
-                "Replies",
-                "Likes",
-                "Quotes",
-                "Text",
-                "Mentions",
-                "URLs",
-                "Hashtags",
-                "IsRetweet"
-            ])
         else:
             target_worksheet = get_sheet().worksheet_by_title(sheet_name)
-        recs = [
+        recs_ = [
             [
                 str(datetime.datetime.now()),
                 r.get("created_at") if r.get("created_at") is not None else r.get("CreatedAt"),
@@ -198,113 +196,22 @@ def add_new_tweets(recent_tweets_):
                 r.get("public_metrics").get("reply_count") if r.get("public_metrics") is not None else r.get("Replies"),
                 r.get("public_metrics").get("like_count") if r.get("public_metrics") is not None else r.get("Likes"),
                 r.get("public_metrics").get("quote_count") if r.get("public_metrics") is not None else r.get("Quotes"),
-                r.get("text") if r.get("text") is not None else r.get("Text"),
+                r.get("text") if r.get("text") is not None else r.get("Tweet"),
                 ",".join([x.get("username") for x in r.get("entities").get("mentions")]) if (r.get("entities") is not None and "mentions" in r.get("entities")) else "" if r.get("entities") is not None else r.get("Mentions"),
                 ",".join([x.get("expanded_url") for x in r.get("entities").get("urls")]) if (r.get("entities") is not None and "urls" in r.get("entities")) else "" if r.get("entities") is not None else r.get("URLs"),
                 ",".join([x.get("tag") for x in r.get("entities").get("hashtags")]) if (r.get("entities") is not None and "hashtags" in r.get("entities")) else "" if r.get("entities") is not None else r.get("Hashtags"),
-                "RT " == r.get("text")[:3] if r.get("text") is not None else "RT " == r.get("Text")[:3]
+                "RT " == r.get("text")[:3] if r.get("text") is not None else "RT " == r.get("Tweet")[:3]
             ] for r in recent_tweets_
         ]
-        if len(recs) > 0:
-            res = target_worksheet.append_table(recs, overwrite = True)
+        recs_.insert(0, recs)
+        if len(recs_) > 0:
+            _ = target_worksheet.clear("A1")
+            res = target_worksheet.append_table(recs_, overwrite = True, start="A1")
         return {"success": True}
     except Exception as e:
         print(e)
         return {"success": False, "error": e.args[0]}
         
-def update_recent_tweets(handle, recent_tweets_):
-    try:
-        sheet_name = "Recent Tweets"
-        worksheets = get_sheet().worksheets()
-        sheet_names = [x.title for x in worksheets]
-        target_worksheet_ = [x for x in worksheets if x.title == sheet_name]
-        if len(target_worksheet_) == 0:
-            ###create new worksheet
-            target_worksheet = get_sheet().add_worksheet(sheet_name)
-            current_data = []
-            target_worksheet.append_table([
-                "Date",
-                "CreatedAt",
-                "Handle",
-                "UserId",
-                "Language",
-                "TweetId",
-                "Retweets",
-                "Replies",
-                "Likes",
-                "Quotes",
-                "Text",
-                "Mentions",
-                "URLs",
-                "Hashtags",
-                "IsRetweet"
-            ])
-            for r in recent_tweets_:
-                target_worksheet.append_table([
-                    str(datetime.datetime.now()),
-                    r.get("created_at"),
-                    handle,
-                    r.get("author_id"), 
-                    r.get("lang"),
-                    r.get("id"),
-                    r.get("public_metrics").get("retweet_count"),
-                    r.get("public_metrics").get("reply_count"),
-                    r.get("public_metrics").get("like_count"),
-                    r.get("public_metrics").get("quote_count"),
-                    r.get("text"),
-                    ",".join([x.get("username") for x in r.get("entities").get("mentions")]) if (r.get("entities") is not None and "mentions" in r.get("entities")) else "",
-                    ",".join([x.get("expanded_url") for x in r.get("entities").get("urls")]) if (r.get("entities") is not None and "urls" in r.get("entities")) else "",
-                    ",".join([x.get("tag") for x in r.get("entities").get("hashtags")]) if (r.get("entities") is not None and "hashtags" in r.get("entities")) else "",
-                    "RT " == r.get("text")[:3]
-                ])
-            return {"success": True}
-        else:
-            target_worksheet = get_sheet().worksheet_by_title(sheet_name)
-            current_data = target_worksheet.get_all_records()
-            for r in recent_tweets_:
-                current_tweet_row = [x for x in range(len(current_data)) if current_data[x].get("TweetId") == int(r.get("id"))]
-                if len(current_tweet_row) > 0:
-                    row_to_update = current_tweet_row[0] + 2
-                    target_worksheet.update_row(row_to_update, [
-                        str(datetime.datetime.now()),
-                        r.get("created_at"),
-                        handle,
-                        r.get("author_id"), 
-                        r.get("lang"),
-                        r.get("id"),
-                        r.get("public_metrics").get("retweet_count"),
-                        r.get("public_metrics").get("reply_count"),
-                        r.get("public_metrics").get("like_count"),
-                        r.get("public_metrics").get("quote_count"),
-                        r.get("text"),
-                        ",".join([x.get("username") for x in r.get("entities").get("mentions")]) if (r.get("entities") is not None and "mentions" in r.get("entities")) else "",
-                        ",".join([x.get("expanded_url") for x in r.get("entities").get("urls")]) if (r.get("entities") is not None and "urls" in r.get("entities")) else "",
-                        ",".join([x.get("tag") for x in r.get("entities").get("hashtags")]) if (r.get("entities") is not None and "hashtags" in r.get("entities")) else "",
-                        "RT " == r.get("text")[:3]
-                    ], 0)
-                else:
-                    target_worksheet.append_table([
-                        str(datetime.datetime.now()),
-                        r.get("created_at"),
-                        handle,
-                        r.get("author_id"), 
-                        r.get("lang"),
-                        r.get("id"),
-                        r.get("public_metrics").get("retweet_count"),
-                        r.get("public_metrics").get("reply_count"),
-                        r.get("public_metrics").get("like_count"),
-                        r.get("public_metrics").get("quote_count"),
-                        r.get("text"),
-                        ",".join([x.get("username") for x in r.get("entities").get("mentions")]) if (r.get("entities") is not None and "mentions" in r.get("entities")) else "",
-                        ",".join([x.get("expanded_url") for x in r.get("entities").get("urls")]) if (r.get("entities") is not None and "urls" in r.get("entities")) else "",
-                        ",".join([x.get("tag") for x in r.get("entities").get("hashtags")]) if (r.get("entities") is not None and "hashtags" in r.get("entities")) else "",
-                        "RT " == r.get("text")[:3]
-                    ])
-            return {"success": True}
-    except Exception as e:
-        print(e)
-        return {"success": False, "error": e.args[0]}
-
 def add_new_mentions(recent_twitter_mentions_):
     try:
         sheet_name = "Recent Mentions"
@@ -314,27 +221,27 @@ def add_new_mentions(recent_twitter_mentions_):
         if len(target_worksheet_) == 0:
             ###create new worksheet
             target_worksheet = get_sheet().add_worksheet(sheet_name)
-            target_worksheet.append_table([
-                "Date",
-                "CreatedAt",
-                "Handle",
-                "UserId",
-                "Language",
-                "TweetId",
-                "Retweets",
-                "Replies",
-                "Likes",
-                "Quotes",
-                "Text",
-                "Mentions",
-                "URLs",
-                "Hashtags",
-                "IsRetweet",
-                "Sentiment"
-            ])
         else:
             target_worksheet = get_sheet().worksheet_by_title(sheet_name)
         recs = [
+            "Date",
+            "CreatedAt",
+            "Handle",
+            "UserId",
+            "Language",
+            "TweetId",
+            "Retweets",
+            "Replies",
+            "Likes",
+            "Quotes",
+            "Tweet",
+            "Mentions",
+            "URLs",
+            "Hashtags",
+            "IsRetweet",
+            "Sentiment"
+        ]
+        recs_ = [
             [
                 str(datetime.datetime.now()),
                 r.get("created_at") if r.get("created_at") is not None else r.get("CreatedAt"),
@@ -346,110 +253,19 @@ def add_new_mentions(recent_twitter_mentions_):
                 r.get("public_metrics").get("reply_count") if r.get("public_metrics") is not None else r.get("Replies"),
                 r.get("public_metrics").get("like_count") if r.get("public_metrics") is not None else r.get("Likes"),
                 r.get("public_metrics").get("quote_count") if r.get("public_metrics") is not None else r.get("Quotes"),
-                r.get("text") if r.get("text") is not None else r.get("Text"),
+                r.get("text") if r.get("text") is not None else r.get("Tweet"),
                 ",".join([x.get("username") for x in r.get("entities").get("mentions")]) if (r.get("entities") is not None and "mentions" in r.get("entities")) else "" if r.get("entities") is not None else r.get("Mentions"),
                 ",".join([x.get("expanded_url") for x in r.get("entities").get("urls")]) if (r.get("entities") is not None and "urls" in r.get("entities")) else "" if r.get("entities") is not None else r.get("URLs"),
                 ",".join([x.get("tag") for x in r.get("entities").get("hashtags")]) if (r.get("entities") is not None and "hashtags" in r.get("entities")) else "" if r.get("entities") is not None else r.get("Hashtags"),
-                "RT " == r.get("text")[:3] if r.get("text") is not None else "RT " == r.get("Text")[:3],
+                "RT " == r.get("text")[:3] if r.get("text") is not None else "RT " == r.get("Tweet")[:3],
                 r.get("sentiment") if r.get("sentiment") is not None else (r.get("Sentiment") if r.get("Sentiment") is not None else 0)
             ] for r in recent_twitter_mentions_
         ]
-        if len(recs) > 0:
-            target_worksheet.append_table(recs, target_worksheet.append_table(recs, overwrite = True))
+        recs_.insert(0, recs)
+        if len(recs_) > 0:
+            target_worksheet.clear("A1")
+            target_worksheet.append_table(recs_, overwrite=True, start="A1")
         return {"success": True}
-    except Exception as e:
-        print(e)
-        return {"success": False, "error": e.args[0]}
-
-def update_recent_mentions(handle, recent_twitter_mentions_):
-    try:
-        sheet_name = "Recent Mentions"
-        worksheets = get_sheet().worksheets()
-        sheet_names = [x.title for x in worksheets]
-        target_worksheet_ = [x for x in worksheets if x.title == sheet_name]
-        if len(target_worksheet_) == 0:
-            ###create new worksheet
-            target_worksheet = get_sheet().add_worksheet(sheet_name)
-            current_data = []
-            target_worksheet.append_table([
-                "Date",
-                "CreatedAt",
-                "Handle",
-                "UserId",
-                "Language",
-                "TweetId",
-                "Retweets",
-                "Replies",
-                "Likes",
-                "Quotes",
-                "Text",
-                "Mentions",
-                "URLs",
-                "Hashtags",
-                "IsRetweet"
-            ])
-            for r in recent_twitter_mentions_:
-                target_worksheet.append_table([
-                    str(datetime.datetime.now()),
-                    r.get("created_at"),
-                    handle,
-                    r.get("author_id"), 
-                    r.get("lang"),
-                    r.get("id"),
-                    r.get("public_metrics").get("retweet_count"),
-                    r.get("public_metrics").get("reply_count"),
-                    r.get("public_metrics").get("like_count"),
-                    r.get("public_metrics").get("quote_count"),
-                    r.get("text"),
-                    ",".join([x.get("username") for x in r.get("entities").get("mentions")]) if (r.get("entities") is not None and "mentions" in r.get("entities")) else "",
-                    ",".join([x.get("expanded_url") for x in r.get("entities").get("urls")]) if (r.get("entities") is not None and "urls" in r.get("entities")) else "",
-                    ",".join([x.get("tag") for x in r.get("entities").get("hashtags")]) if (r.get("entities") is not None and "hashtags" in r.get("entities")) else "",
-                    "RT " == r.get("text")[:3]
-                ])
-            return {"success": True}
-        else:
-            target_worksheet = get_sheet().worksheet_by_title(sheet_name)
-            current_data = target_worksheet.get_all_records()
-            for r in recent_twitter_mentions_:
-                current_tweet_row = [x for x in range(len(current_data)) if current_data[x].get("TweetId") == int(r.get("id"))]
-                if len(current_tweet_row) > 0:
-                    row_to_update = current_tweet_row[0] + 2
-                    target_worksheet.update_row(row_to_update, [
-                        str(datetime.datetime.now()),
-                        r.get("created_at"),
-                        handle,
-                        r.get("author_id"), 
-                        r.get("lang"),
-                        r.get("id"),
-                        r.get("public_metrics").get("retweet_count"),
-                        r.get("public_metrics").get("reply_count"),
-                        r.get("public_metrics").get("like_count"),
-                        r.get("public_metrics").get("quote_count"),
-                        r.get("text"),
-                        ",".join([x.get("username") for x in r.get("entities").get("mentions")]) if (r.get("entities") is not None and "mentions" in r.get("entities")) else "",
-                        ",".join([x.get("expanded_url") for x in r.get("entities").get("urls")]) if (r.get("entities") is not None and "urls" in r.get("entities")) else "",
-                        ",".join([x.get("tag") for x in r.get("entities").get("hashtags")]) if (r.get("entities") is not None and "hashtags" in r.get("entities")) else "",
-                        "RT " == r.get("text")[:3]
-                    ], 0)
-                else:
-                    target_worksheet.append_table([
-                        str(datetime.datetime.now()),
-                        r.get("created_at"),
-                        handle,
-                        r.get("author_id"), 
-                        r.get("lang"),
-                        r.get("id"),
-                        r.get("public_metrics").get("retweet_count"),
-                        r.get("public_metrics").get("reply_count"),
-                        r.get("public_metrics").get("like_count"),
-                        r.get("public_metrics").get("quote_count"),
-                        r.get("text"),
-                        ",".join([x.get("username") for x in r.get("entities").get("mentions")]) if (r.get("entities") is not None and "mentions" in r.get("entities")) else "",
-                        ",".join([x.get("expanded_url") for x in r.get("entities").get("urls")]) if (r.get("entities") is not None and "urls" in r.get("entities")) else "",
-                        ",".join([x.get("tag") for x in r.get("entities").get("hashtags")]) if (r.get("entities") is not None and "hashtags" in r.get("entities")) else "",
-                        "RT " == r.get("text")[:3]
-                    ])
-            return {"success": True}
     except Exception as e:
         print(e)
         return {"success": False, "error": e.args[0]}
@@ -463,29 +279,29 @@ def add_new_topics(recent_tweets_topics_):
         if len(target_worksheet_) == 0:
             ###create new worksheet
             target_worksheet = get_sheet().add_worksheet(sheet_name)
-            target_worksheet.append_table([
-                "Date",
-                "CreatedAt",
-                "Topic",
-                "Handle",
-                "Name",
-                "UserId",
-                "Language",
-                "TweetId",
-                "Retweets",
-                "Replies",
-                "Likes",
-                "Quotes",
-                "Text",
-                "Mentions",
-                "URLs",
-                "Hashtags",
-                "IsRetweet",
-                "Sentiment"
-            ])
         else:
             target_worksheet = get_sheet().worksheet_by_title(sheet_name)
         recs = [
+            "Date",
+            "CreatedAt",
+            "Topic",
+            "Handle",
+            "Name",
+            "UserId",
+            "Language",
+            "TweetId",
+            "Retweets",
+            "Replies",
+            "Likes",
+            "Quotes",
+            "Tweet",
+            "Mentions",
+            "URLs",
+            "Hashtags",
+            "IsRetweet",
+            "Sentiment"
+        ]
+        recs_ = [
             [
                 str(datetime.datetime.now()),
                 r.get("created_at") if r.get("created_at") is not None else r.get("CreatedAt"),
@@ -499,116 +315,19 @@ def add_new_topics(recent_tweets_topics_):
                 r.get("public_metrics").get("reply_count") if r.get("public_metrics") is not None else r.get("Replies"),
                 r.get("public_metrics").get("like_count") if r.get("public_metrics") is not None else r.get("Likes"),
                 r.get("public_metrics").get("quote_count") if r.get("public_metrics") is not None else r.get("Quotes"),
-                r.get("text") if r.get("text") is not None else r.get("Text"),
+                r.get("text") if r.get("text") is not None else r.get("Tweet"),
                 ",".join([x.get("username") for x in r.get("entities").get("mentions")]) if (r.get("entities") is not None and "mentions" in r.get("entities")) else "" if r.get("entities") is not None else r.get("Mentions"),
                 ",".join([x.get("expanded_url") for x in r.get("entities").get("urls")]) if (r.get("entities") is not None and "urls" in r.get("entities")) else "" if r.get("entities") is not None else r.get("URLs"),
                 ",".join([x.get("tag") for x in r.get("entities").get("hashtags")]) if (r.get("entities") is not None and "hashtags" in r.get("entities")) else "" if r.get("entities") is not None else r.get("Hashtags"),
-                "RT " == r.get("text")[:3] if r.get("text") is not None else "RT " == r.get("Text")[:3],
+                "RT " == r.get("text")[:3] if r.get("text") is not None else "RT " == r.get("Tweet")[:3],
                 r.get("sentiment") if r.get("sentiment") is not None else (r.get("Sentiment") if r.get("Sentiment") is not None else 0)
             ] for r in recent_tweets_topics_
         ]
-        if len(recs) > 0:
-            target_worksheet.append_table(recs, overwrite = True)
+        recs_.insert(0, recs)
+        if len(recs_) > 0:
+            target_worksheet.clear("A1")
+            target_worksheet.append_table(recs_, overwrite=True, start="A1")
         return {"success": True}
-    except Exception as e:
-        print(e)
-        return {"success": False, "error": e.args[0]}
-
-def update_recent_topics(t, recent_tweets_topics_):
-    try:
-        sheet_name = "Twitter Topic Sampling"
-        worksheets = get_sheet().worksheets()
-        sheet_names = [x.title for x in worksheets]
-        target_worksheet_ = [x for x in worksheets if x.title == sheet_name]
-        if len(target_worksheet_) == 0:
-            ###create new worksheet
-            target_worksheet = get_sheet().add_worksheet(sheet_name)
-            current_data = []
-            target_worksheet.append_table([
-                "Date",
-                "CreatedAt",
-                "Topic",
-                "Handle",
-                "Name",
-                "UserId",
-                "Language",
-                "TweetId",
-                "Retweets",
-                "Replies",
-                "Likes",
-                "Quotes",
-                "Text",
-                "Mentions",
-                "URLs",
-                "Hashtags",
-                "IsRetweet"
-            ])
-            for r in recent_tweets_topics_:
-                target_worksheet.append_table([
-                    str(datetime.datetime.now()),
-                    r.get("created_at"),
-                    t,
-                    r.get("username"),
-                    r.get("name"),
-                    r.get("author_id"), 
-                    r.get("lang"),
-                    r.get("id"),
-                    r.get("public_metrics").get("retweet_count"),
-                    r.get("public_metrics").get("reply_count"),
-                    r.get("public_metrics").get("like_count"),
-                    r.get("public_metrics").get("quote_count"),
-                    r.get("text"),
-                    ",".join([x.get("username") for x in r.get("entities").get("mentions")]) if (r.get("entities") is not None and "mentions" in r.get("entities")) else "",
-                    ",".join([x.get("expanded_url") for x in r.get("entities").get("urls")]) if (r.get("entities") is not None and "urls" in r.get("entities")) else "",
-                    ",".join([x.get("tag") for x in r.get("entities").get("hashtags")]) if (r.get("entities") is not None and "hashtags" in r.get("entities")) else "",
-                    "RT " == r.get("text")[:3]
-                ])
-            return {"success": True}
-        else:
-            target_worksheet = get_sheet().worksheet_by_title(sheet_name)
-            current_data = target_worksheet.get_all_records()
-            for r in recent_tweets_topics_:
-                current_tweet_row = [x for x in range(len(current_data)) if current_data[x].get("TweetId") == int(r.get("id"))]
-                if len(current_tweet_row) > 0:
-                    row_to_update = current_tweet_row[0] + 2
-                    target_worksheet.update_row(row_to_update, [
-                        str(datetime.datetime.now()),
-                        r.get("created_at"),
-                        r.get("username"),
-                        r.get("name"),
-                        r.get("author_id"), 
-                        r.get("lang"),
-                        r.get("id"),
-                        r.get("public_metrics").get("retweet_count"),
-                        r.get("public_metrics").get("reply_count"),
-                        r.get("public_metrics").get("like_count"),
-                        r.get("public_metrics").get("quote_count"),
-                        r.get("text"),
-                        ",".join([x.get("username") for x in r.get("entities").get("mentions")]) if (r.get("entities") is not None and "mentions" in r.get("entities")) else "",
-                        ",".join([x.get("expanded_url") for x in r.get("entities").get("urls")]) if (r.get("entities") is not None and "urls" in r.get("entities")) else "",
-                        ",".join([x.get("tag") for x in r.get("entities").get("hashtags")]) if (r.get("entities") is not None and "hashtags" in r.get("entities")) else "",
-                        "RT " == r.get("text")[:3]
-                    ], 0)
-                else:
-                    target_worksheet.append_table([
-                        str(datetime.datetime.now()),
-                        r.get("created_at"),
-                        r.get("username"),
-                        r.get("name"),
-                        r.get("author_id"), 
-                        r.get("lang"),
-                        r.get("id"),
-                        r.get("public_metrics").get("retweet_count"),
-                        r.get("public_metrics").get("reply_count"),
-                        r.get("public_metrics").get("like_count"),
-                        r.get("public_metrics").get("quote_count"),
-                        r.get("text"),
-                        ",".join([x.get("username") for x in r.get("entities").get("mentions")]) if (r.get("entities") is not None and "mentions" in r.get("entities")) else "",
-                        ",".join([x.get("expanded_url") for x in r.get("entities").get("urls")]) if (r.get("entities") is not None and "urls" in r.get("entities")) else "",
-                        ",".join([x.get("tag") for x in r.get("entities").get("hashtags")]) if (r.get("entities") is not None and "hashtags" in r.get("entities")) else "",
-                        "RT " == r.get("text")[:3]
-                    ])
-            return {"success": True}
     except Exception as e:
         print(e)
         return {"success": False, "error": e.args[0]}
@@ -667,6 +386,34 @@ def get_current_data(sheet_name):
     except Exception as e:
         print(e)
         return []
+
+def add_data_to_log(data_log):
+    try:
+        sheet_name = "Data Acquisition Log"
+        worksheets = get_sheet().worksheets()
+        sheet_names = [x.title for x in worksheets]
+        target_worksheet_ = [x for x in worksheets if x.title == sheet_name]
+        if len(target_worksheet_) == 0:
+            ###create new worksheet
+            target_worksheet = get_sheet().add_worksheet(sheet_name)
+            target_worksheet.append_table([
+                "Date",
+                "Number of Tweets"
+            ])
+        else:
+            target_worksheet = get_sheet().worksheet_by_title(sheet_name)
+        recs = [
+            [
+                r.get("date"),
+                r.get("num")
+            ] for r in data_log
+        ]
+        if len(recs) > 0:
+            target_worksheet.append_table(recs)
+        return {"success": True}
+    except Exception as e:
+        print(e)
+        return {"success": False, "error": e.args[0]}
 
 def get_inputs():
     sheet_name = "Inputs"
