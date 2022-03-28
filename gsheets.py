@@ -200,7 +200,7 @@ def add_new_tweets(recent_tweets_):
                 ",".join([x.get("username") for x in r.get("entities").get("mentions")]) if (r.get("entities") is not None and "mentions" in r.get("entities")) else "" if r.get("entities") is not None else r.get("Mentions"),
                 ",".join([x.get("expanded_url") for x in r.get("entities").get("urls")]) if (r.get("entities") is not None and "urls" in r.get("entities")) else "" if r.get("entities") is not None else r.get("URLs"),
                 ",".join([x.get("tag") for x in r.get("entities").get("hashtags")]) if (r.get("entities") is not None and "hashtags" in r.get("entities")) else "" if r.get("entities") is not None else r.get("Hashtags"),
-                "RT " == r.get("text")[:3] if r.get("text") is not None else "RT " == r.get("Tweet")[:3]
+                "RT " == str(r.get("text"))[:3] if r.get("text") is not None else "RT " == str(r.get("Tweet"))[:3]
             ] for r in recent_tweets_
         ]
         recs_.insert(0, recs)
@@ -257,7 +257,7 @@ def add_new_mentions(recent_twitter_mentions_):
                 ",".join([x.get("username") for x in r.get("entities").get("mentions")]) if (r.get("entities") is not None and "mentions" in r.get("entities")) else "" if r.get("entities") is not None else r.get("Mentions"),
                 ",".join([x.get("expanded_url") for x in r.get("entities").get("urls")]) if (r.get("entities") is not None and "urls" in r.get("entities")) else "" if r.get("entities") is not None else r.get("URLs"),
                 ",".join([x.get("tag") for x in r.get("entities").get("hashtags")]) if (r.get("entities") is not None and "hashtags" in r.get("entities")) else "" if r.get("entities") is not None else r.get("Hashtags"),
-                "RT " == r.get("text")[:3] if r.get("text") is not None else "RT " == r.get("Tweet")[:3],
+                "RT " == str(r.get("text"))[:3] if r.get("text") is not None else "RT " == str(r.get("Tweet"))[:3],
                 r.get("sentiment") if r.get("sentiment") is not None else (r.get("Sentiment") if r.get("Sentiment") is not None else 0)
             ] for r in recent_twitter_mentions_
         ]
@@ -319,7 +319,7 @@ def add_new_topics(recent_tweets_topics_):
                 ",".join([x.get("username") for x in r.get("entities").get("mentions")]) if (r.get("entities") is not None and "mentions" in r.get("entities")) else "" if r.get("entities") is not None else r.get("Mentions"),
                 ",".join([x.get("expanded_url") for x in r.get("entities").get("urls")]) if (r.get("entities") is not None and "urls" in r.get("entities")) else "" if r.get("entities") is not None else r.get("URLs"),
                 ",".join([x.get("tag") for x in r.get("entities").get("hashtags")]) if (r.get("entities") is not None and "hashtags" in r.get("entities")) else "" if r.get("entities") is not None else r.get("Hashtags"),
-                "RT " == r.get("text")[:3] if r.get("text") is not None else "RT " == r.get("Tweet")[:3],
+                "RT " == str(r.get("text"))[:3] if r.get("text") is not None else "RT " == str(r.get("Tweet"))[:3],
                 r.get("sentiment") if r.get("sentiment") is not None else (r.get("Sentiment") if r.get("Sentiment") is not None else 0)
             ] for r in recent_tweets_topics_
         ]
