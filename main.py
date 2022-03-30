@@ -31,7 +31,31 @@ def update():
         current_youtube_videos = gsheets.get_current_data("Youtube Videos")
 
         #####Remove current tweets and mentions and topical tweets more than 7/30 days old
-        current_recent_tweets = [x for x in current_recent_tweets_ if datetime.datetime.strptime(x.get('CreatedAt').split("T")[0], "%Y-%m-%d") >= datetime.datetime.now() - datetime.timedelta(hours=7*24)]
+        unique_handles_recent_tweets = list(set([x.get("Handle") for x in current_recent_tweets_]))
+        handles_count_recent_tweets = [{"handle": x, "count": len([y for y in current_recent_tweets_ if y.get("Handle") == x])} for x in unique_handles_recent_tweets]
+        current_recent_tweets_keep = []
+        for h in handles_count_recent_tweets:
+            if h not in target_twitter_handles:
+                if h.get("count") < 200:
+                    current_recent_tweets_keep.append([x for x in current_recent_tweets_ if x.get("Handle") == h.get("handle")])
+                else:
+                    t = [x for x in current_recent_tweets_ if x.get("Handle") == h.get("handle")]
+                    t.sort(key=lambda item:item['CreatedAt'], reverse=True)
+                    current_recent_tweets_keep.append(t[:200])
+            else:
+                current_recent_tweets_keep.append([x for x in current_recent_tweets_ if x.get("Handle") == h.get("handle")])
+        current_recent_tweets = [j for i in current_recent_tweets_keep for j in i]
+        current_recent_tweets.sort(key=lambda item:item['CreatedAt'], reverse=True)
+        current_recent_tweets_to_update = [x for x in current_recent_tweets if x.get("Handle") in target_twitter_handles and datetime.datetime.strptime(x.get("CreatedAt").split("T")[0], "%Y-%m-%d") >= datetime.datetime.now() - datetime.timedelta(hours=7*24)]
+        updated_current_recent_tweets = tweet_lookup(current_recent_tweets_to_update) if len(current_recent_tweets_to_update) > 0 else []
+        for r in updated_current_recent_tweets:
+            match = [x for x in range(len(current_recent_tweets)) if current_recent_tweets[x].get("TweetId") == int(r.get("id"))]
+            if len(match) > 0:
+                current_recent_tweets[match[0]]['Retweets'] = r.get("public_metrics").get("retweet_count")
+                current_recent_tweets[match[0]]['Replies'] = r.get("public_metrics").get("reply_count")
+                current_recent_tweets[match[0]]['Likes'] = r.get("public_metrics").get("like_count")
+                current_recent_tweets[match[0]]['Quotes'] = r.get("public_metrics").get("quote_count")
+        
         current_recent_mentions = [x for x in current_recent_mentions_ if datetime.datetime.strptime(x.get('CreatedAt').split("T")[0], "%Y-%m-%d") >= datetime.datetime.now() - datetime.timedelta(hours=30*24)]
         current_twitter_topic_sampling = [x for x in current_twitter_topic_sampling_ if datetime.datetime.strptime(x.get('CreatedAt').split("T")[0], "%Y-%m-%d") >= datetime.datetime.now() - datetime.timedelta(hours=7*24)]
         
@@ -148,8 +172,6 @@ def update():
         res = gsheets.add_new_topics(current_twitter_topic_sampling + [x for x in new_tweets_on_topic_to_add_ if int(x.get("id")) not in [y.get("TweetId") for y in current_twitter_topic_sampling]])
         print("adding topic analysis")
         res = gsheets.add_topic_analysis(topic_analysis)
-        # print("adding listening account analysis - hashtags")
-        # res = gsheets.add_listening_account_hashtag_counts(hashtag_counts, len(listening_account_analysis))
         """videos for input youtube channel"""
         videos = [get_recent_video_links(x) for x in target_youtube_channels]
         video_links, video_titles, video_published = [], [], []
@@ -303,12 +325,20 @@ def recent_tweets_keyword(keyword, only_new):
 
 def recent_tweet_counts(keyword):
     """Return a count of the recent tweets that mention a specific keyword or phrase"""
-    resp = make_request(
-        "{}tweets/counts/recent?query={} -is:retweet&granularity=hour&start_time={}&end_time={}".format(
+    print("getting tweet count for: {}".format(keyword))
+    print("request: {}".format("{}tweets/counts/recent?query={}%20-is:retweet&granularity=hour&start_time={}&end_time={}".format(
             config.endpoints.get("twitter"),
             keyword,
             datetime.datetime.strftime(datetime.datetime.now() - datetime.timedelta(minutes=env.FREQUENCY), "%Y-%m-%dT%H:%M:%SZ"),
-            datetime.datetime.strftime(datetime.datetime.now(), "%Y-%m-%dT%H:%M:%SZ")
+            datetime.datetime.strftime(datetime.datetime.now() - datetime.timedelta(minutes=1), "%Y-%m-%dT%H:%M:%SZ")
+        )
+    ))
+    resp = make_request(
+        "{}tweets/counts/recent?query={}%20-is:retweet&granularity=hour&start_time={}&end_time={}".format(
+            config.endpoints.get("twitter"),
+            keyword,
+            datetime.datetime.strftime(datetime.datetime.now() - datetime.timedelta(minutes=env.FREQUENCY+1), "%Y-%m-%dT%H:%M:%SZ"),
+            datetime.datetime.strftime(datetime.datetime.now() - datetime.timedelta(minutes=1), "%Y-%m-%dT%H:%M:%SZ")
         ), config.headers.get("twitter").get("header")
     )
     valid_resp = validate_twitter_response(resp)
@@ -369,12 +399,17 @@ def validate_twitter_response(resp):
         if resp.status_code == 200:
             return True
         elif resp.status_code == 401:
+            print(resp.status_code)
             print(resp.reason)
+            print(resp.text)
             return False
         elif resp.status_code == 400:
+            print(resp.status_code)
             print(resp.reason)
+            print(resp.text)
             return False
         else:
+            print(resp.status_code)
             return False
 
 def get_twitter_followers(handle):
@@ -403,28 +438,35 @@ def get_twitter_followers(handle):
 
 def tweet_lookup(tweets):
     """Return the tweets from a specific TweetId"""
-    resp = make_request(
-        "{}tweets?ids={}&tweet.fields={}".format(
-            config.endpoints.get("twitter"),
-            ",".join([str(x.get("TweetId")) for x in tweets]),
-            "created_at,context_annotations,entities,in_reply_to_user_id,lang,public_metrics,referenced_tweets,source,text&expansions=author_id,entities.mentions.username,in_reply_to_user_id&user.fields=created_at"
-        ), config.headers.get("twitter").get("header")
-    )
-    valid_resp = validate_twitter_response(resp)
-    if valid_resp:
-        result = json.loads(resp.text)
-        if 'data' in result:
-            return_data = result.get("data")
-            for j in range(len(return_data)):
-                match = [x for x in tweets if x.get("TweetId") == int(return_data[j].get("id"))]
-                if len(match) > 0:
-                    match_ = match[0]
-                    return_data[j]['handle'] = match_.get("Handle")
-            return return_data
+    batch_size = 100
+    num_batches = math.ceil(len(tweets)/batch_size)
+    updated = []
+    for j in range(num_batches):
+        batch = tweets[(j*batch_size):((j+1)*batch_size)]
+        resp = make_request(
+            "{}tweets?ids={}&tweet.fields={}".format(
+                config.endpoints.get("twitter"),
+                ",".join([str(x.get("TweetId")) for x in batch]),
+                "created_at,context_annotations,entities,in_reply_to_user_id,lang,public_metrics,referenced_tweets,source,text&expansions=author_id,entities.mentions.username,in_reply_to_user_id&user.fields=created_at"
+            ), config.headers.get("twitter").get("header")
+        )
+        valid_resp = validate_twitter_response(resp)
+        if valid_resp:
+            result = json.loads(resp.text)
+            if 'data' in result:
+                return_data = result.get("data")
+                for j in range(len(return_data)):
+                    match = [x for x in tweets if x.get("TweetId") == int(return_data[j].get("id"))]
+                    if len(match) > 0:
+                        match_ = match[0]
+                        return_data[j]['handle'] = match_.get("Handle")
+                updated.append(return_data)
+            else:
+                updated.append([])
         else:
-            return []
-    else:
-        return []
+            updated.append([])
+    return [j for i in updated for j in i]
+
 
 def make_request(url, headers):
     try:

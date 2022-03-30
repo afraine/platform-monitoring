@@ -184,6 +184,15 @@ def add_new_tweets(recent_tweets_):
             target_worksheet = get_sheet().add_worksheet(sheet_name)
         else:
             target_worksheet = get_sheet().worksheet_by_title(sheet_name)
+        model_cell = pygsheets.Cell("A1")
+        model_cell.set_number_format(
+            format_type = pygsheets.FormatType.NUMBER,
+            pattern = "0"
+        )
+        dr = pygsheets.datarange.DataRange(start="D2", end="D1000000", worksheet=target_worksheet)
+        dr.apply_format(cell=model_cell)
+        dr = pygsheets.datarange.DataRange(start="F2", end="F1000000", worksheet=target_worksheet)
+        dr.apply_format(cell=model_cell)
         recs_ = [
             [
                 str(datetime.datetime.now()),
@@ -223,6 +232,15 @@ def add_new_mentions(recent_twitter_mentions_):
             target_worksheet = get_sheet().add_worksheet(sheet_name)
         else:
             target_worksheet = get_sheet().worksheet_by_title(sheet_name)
+        model_cell = pygsheets.Cell("A1")
+        model_cell.set_number_format(
+            format_type = pygsheets.FormatType.NUMBER,
+            pattern = "0"
+        )
+        dr = pygsheets.datarange.DataRange(start="D2", end="D1000000", worksheet=target_worksheet)
+        dr.apply_format(cell=model_cell)
+        dr = pygsheets.datarange.DataRange(start="F2", end="F1000000", worksheet=target_worksheet)
+        dr.apply_format(cell=model_cell)
         recs = [
             "Date",
             "CreatedAt",
@@ -281,6 +299,15 @@ def add_new_topics(recent_tweets_topics_):
             target_worksheet = get_sheet().add_worksheet(sheet_name)
         else:
             target_worksheet = get_sheet().worksheet_by_title(sheet_name)
+        model_cell = pygsheets.Cell("A1")
+        model_cell.set_number_format(
+            format_type = pygsheets.FormatType.NUMBER,
+            pattern = "0"
+        )
+        dr = pygsheets.datarange.DataRange(start="H2", end="H1000000", worksheet=target_worksheet)
+        dr.apply_format(cell=model_cell)
+        dr = pygsheets.datarange.DataRange(start="F2", end="F1000000", worksheet=target_worksheet)
+        dr.apply_format(cell=model_cell)
         recs = [
             "Date",
             "CreatedAt",
