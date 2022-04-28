@@ -47,14 +47,17 @@ def update():
         current_recent_tweets = [j for i in current_recent_tweets_keep for j in i]
         current_recent_tweets.sort(key=lambda item:item['CreatedAt'], reverse=True)
         current_recent_tweets_to_update = [x for x in current_recent_tweets if x.get("Handle") in target_twitter_handles and datetime.datetime.strptime(x.get("CreatedAt").split("T")[0], "%Y-%m-%d") >= datetime.datetime.now() - datetime.timedelta(hours=7*24)]
-        updated_current_recent_tweets = tweet_lookup(current_recent_tweets_to_update) if len(current_recent_tweets_to_update) > 0 else []
-        for r in updated_current_recent_tweets:
-            match = [x for x in range(len(current_recent_tweets)) if current_recent_tweets[x].get("TweetId") == int(r.get("id"))]
-            if len(match) > 0:
-                current_recent_tweets[match[0]]['Retweets'] = r.get("public_metrics").get("retweet_count")
-                current_recent_tweets[match[0]]['Replies'] = r.get("public_metrics").get("reply_count")
-                current_recent_tweets[match[0]]['Likes'] = r.get("public_metrics").get("like_count")
-                current_recent_tweets[match[0]]['Quotes'] = r.get("public_metrics").get("quote_count")
+        try:
+            updated_current_recent_tweets = tweet_lookup(current_recent_tweets_to_update) if len(current_recent_tweets_to_update) > 0 else []
+            for r in updated_current_recent_tweets:
+                match = [x for x in range(len(current_recent_tweets)) if current_recent_tweets[x].get("TweetId") == "id_{}".format(r.get("id"))]
+                if len(match) > 0:
+                    current_recent_tweets[match[0]]['Retweets'] = r.get("public_metrics").get("retweet_count")
+                    current_recent_tweets[match[0]]['Replies'] = r.get("public_metrics").get("reply_count")
+                    current_recent_tweets[match[0]]['Likes'] = r.get("public_metrics").get("like_count")
+                    current_recent_tweets[match[0]]['Quotes'] = r.get("public_metrics").get("quote_count")
+        except:
+            print("there was an error updating the recent tweets")
         
         current_recent_mentions = [x for x in current_recent_mentions_ if datetime.datetime.strptime(x.get('CreatedAt').split("T")[0], "%Y-%m-%d") >= datetime.datetime.now() - datetime.timedelta(hours=30*24)]
         current_twitter_topic_sampling = [x for x in current_twitter_topic_sampling_ if datetime.datetime.strptime(x.get('CreatedAt').split("T")[0], "%Y-%m-%d") >= datetime.datetime.now() - datetime.timedelta(hours=7*24)]
@@ -139,7 +142,7 @@ def update():
             num_tweets += len(recent_tweets_accounts_)
             new_tweets_to_add.append(recent_tweets_accounts_)
             for j in range(len(recent_tweets_accounts_)):
-                if int(recent_tweets_accounts_[j].get("id")) not in [x.get("TweetId") for x in current_recent_tweets]:
+                if "id_{}".format(recent_tweets_accounts_[j].get("id")) not in [x.get("TweetId") for x in current_recent_tweets]:
                     listening_account_analysis.append({
                         "account": t,
                         "date": recent_tweets_accounts_[j].get("created_at"),
@@ -165,11 +168,11 @@ def update():
         print("adding public metrics to sheets")
         res = gsheets.add_twitter_public_metrics(new_public_metrics_to_add)
         print("adding new tweets to sheets")
-        res = gsheets.add_new_tweets(current_recent_tweets + [x for x in new_tweets_to_add_ if int(x.get("id")) not in [y.get("TweetId") for y in current_recent_tweets]]) 
+        res = gsheets.add_new_tweets(current_recent_tweets + [x for x in new_tweets_to_add_ if "id_{}".format(x.get("id")) not in [y.get("TweetId") for y in current_recent_tweets]])
         print("adding new mentions to sheets")
-        res = gsheets.add_new_mentions(current_recent_mentions + [x for x in new_mentions_to_add_ if int(x.get("id")) not in [y.get("TweetId") for y in current_recent_mentions]]) 
+        res = gsheets.add_new_mentions(current_recent_mentions + [x for x in new_mentions_to_add_ if "id_{}".format(x.get("id")) not in [y.get("TweetId") for y in current_recent_mentions]])
         print("adding topical tweets to sheets")  
-        res = gsheets.add_new_topics(current_twitter_topic_sampling + [x for x in new_tweets_on_topic_to_add_ if int(x.get("id")) not in [y.get("TweetId") for y in current_twitter_topic_sampling]])
+        res = gsheets.add_new_topics(current_twitter_topic_sampling + [x for x in new_tweets_on_topic_to_add_ if "id_{}".format(x.get("id")) not in [y.get("TweetId") for y in current_twitter_topic_sampling]])
         print("adding topic analysis")
         res = gsheets.add_topic_analysis(topic_analysis)
         """videos for input youtube channel"""
@@ -222,7 +225,7 @@ def recent_tweets(handle, next_token_, only_new, exclude_RT, exclude_replies):
     """Return the recent tweets from a specific twitter handle"""
     user_id = get_user_id(handle)
     if user_id is not None:
-        p = "created_at,context_annotations,entities,in_reply_to_user_id,lang,public_metrics,referenced_tweets,source,text&expansions=author_id,entities.mentions.username,in_reply_to_user_id&user.fields=created_at"
+        p = "created_at,context_annotations,entities,in_reply_to_user_id,lang,public_metrics,referenced_tweets,source,text,attachments&expansions=attachments.media_keys,author_id,entities.mentions.username,in_reply_to_user_id&user.fields=created_at&media.fields=preview_image_url,type,url,width,public_metrics"
         exclusions = []
         if exclude_RT:
             exclusions.append("retweets")
@@ -258,6 +261,18 @@ def recent_tweets(handle, next_token_, only_new, exclude_RT, exclude_replies):
                 return_data = result.get("data")
                 for j in range(len(return_data)):
                     return_data[j]['handle'] = handle
+                    return_data[j]['media'] = []
+                    if "attachments" in return_data[j]:
+                        attachments = return_data[j].get("attachments")
+                        if attachments is not None and "media_keys" in attachments:
+                            media_keys = attachments.get("media_keys")
+                            if len(media_keys) > 0:
+                                if "includes" in result:
+                                    if result.get("includes") is not None and "media" in result.get("includes"):
+                                        media = result.get("includes").get("media")
+                                        matches = [[x for x in media if x.get("media_key") == y] for y in media_keys]
+                                        media_matches = [j for i in matches for j in i]
+                                        return_data[j]['media'] = media_matches
                 return return_data, next_token
             else:
                 return [], None
@@ -270,7 +285,7 @@ def recent_twitter_mentions(handle, only_new):
     """Return the recent tweets that mention a specific twitter handle"""
     user_id = get_user_id(handle)
     if user_id is not None:
-        p = "created_at,context_annotations,entities,in_reply_to_user_id,lang,public_metrics,referenced_tweets,source,text&expansions=author_id,entities.mentions.username,in_reply_to_user_id&user.fields=created_at&max_results=100"
+        p = "created_at,context_annotations,entities,in_reply_to_user_id,lang,public_metrics,referenced_tweets,source,text,attachments&expansions=attachments.media_keys,author_id,entities.mentions.username,in_reply_to_user_id&media.fields=preview_image_url,type,url,width,public_metrics&user.fields=created_at&max_results=100"
         if only_new:
             p += "&start_time=" + datetime.datetime.strftime(datetime.datetime.now() - datetime.timedelta(minutes=env.FREQUENCY), "%Y-%m-%dT%H:%M:%SZ")
         resp = make_request("{}users/{}/mentions?tweet.fields={}".format(
@@ -285,6 +300,18 @@ def recent_twitter_mentions(handle, only_new):
                 return_data = result.get("data")
                 for j in range(len(return_data)):
                     return_data[j]['handle'] = handle
+                    return_data[j]['media'] = []
+                    if "attachments" in return_data[j]:
+                        attachments = return_data[j].get("attachments")
+                        if attachments is not None and "media_keys" in attachments:
+                            media_keys = attachments.get("media_keys")
+                            if len(media_keys) > 0:
+                                if "includes" in result:
+                                    if result.get("includes") is not None and "media" in result.get("includes"):
+                                        media = result.get("includes").get("media")
+                                        matches = [[x for x in media if x.get("media_key") == y] for y in media_keys]
+                                        media_matches = [j for i in matches for j in i]
+                                        return_data[j]['media'] = media_matches
                 return return_data
             else:
                 return []
@@ -295,7 +322,7 @@ def recent_twitter_mentions(handle, only_new):
 
 def recent_tweets_keyword(keyword, only_new):
     """Return a sampling of the recent tweets that mention a specific keyword or phrase"""
-    p = "created_at,context_annotations,entities,in_reply_to_user_id,lang,public_metrics,referenced_tweets,source,text&expansions=author_id,entities.mentions.username,in_reply_to_user_id&user.fields=username,name,created_at&max_results=20"
+    p = "created_at,context_annotations,entities,in_reply_to_user_id,lang,public_metrics,referenced_tweets,source,text,attachments&expansions=attachments.media_keys,author_id,entities.mentions.username,in_reply_to_user_id&media.fields=preview_image_url,type,url,width,public_metrics&user.fields=username,name,created_at&max_results=20"
     if only_new:
         p += "&start_time=" + datetime.datetime.strftime(datetime.datetime.now() - datetime.timedelta(minutes=env.FREQUENCY), "%Y-%m-%dT%H:%M:%SZ")
     resp = make_request(
@@ -446,8 +473,8 @@ def tweet_lookup(tweets):
         resp = make_request(
             "{}tweets?ids={}&tweet.fields={}".format(
                 config.endpoints.get("twitter"),
-                ",".join([str(x.get("TweetId")) for x in batch]),
-                "created_at,context_annotations,entities,in_reply_to_user_id,lang,public_metrics,referenced_tweets,source,text&expansions=author_id,entities.mentions.username,in_reply_to_user_id&user.fields=created_at"
+                ",".join([x.get("TweetId").replace("id_","") for x in batch]),
+                "created_at,context_annotations,entities,in_reply_to_user_id,lang,public_metrics,referenced_tweets,source,attachments&expansions=attachments.media_keys,author_id,entities.mentions.username,in_reply_to_user_id&user.fields=created_at"
             ), config.headers.get("twitter").get("header")
         )
         valid_resp = validate_twitter_response(resp)
@@ -456,7 +483,7 @@ def tweet_lookup(tweets):
             if 'data' in result:
                 return_data = result.get("data")
                 for j in range(len(return_data)):
-                    match = [x for x in tweets if x.get("TweetId") == int(return_data[j].get("id"))]
+                    match = [x for x in tweets if x.get("TweetId").replace("id_","") == return_data[j].get("id")]
                     if len(match) > 0:
                         match_ = match[0]
                         return_data[j]['handle'] = match_.get("Handle")

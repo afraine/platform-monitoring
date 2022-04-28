@@ -177,30 +177,32 @@ def add_new_tweets(recent_tweets_):
             "Mentions",
             "URLs",
             "Hashtags",
-            "IsRetweet"
+            "IsRetweet",
+            "Link",
+            "Media Type",
+            "Media Link"
         ]
         if len(target_worksheet_) == 0:
             ###create new worksheet
             target_worksheet = get_sheet().add_worksheet(sheet_name)
         else:
             target_worksheet = get_sheet().worksheet_by_title(sheet_name)
-        model_cell = pygsheets.Cell("A1")
-        model_cell.set_number_format(
-            format_type = pygsheets.FormatType.NUMBER,
-            pattern = "0"
-        )
-        dr = pygsheets.datarange.DataRange(start="D2", end="D1000000", worksheet=target_worksheet)
-        dr.apply_format(cell=model_cell)
-        dr = pygsheets.datarange.DataRange(start="F2", end="F1000000", worksheet=target_worksheet)
-        dr.apply_format(cell=model_cell)
+        # model_cell = pygsheets.Cell("A1")
+        # model_cell.set_number_format(
+        #     format_type = pygsheets.FormatType.TEXT
+        # )
+        # dr = pygsheets.datarange.DataRange(start="D2", end="D1000000", worksheet=target_worksheet)
+        # dr.apply_format(cell=model_cell)
+        # dr = pygsheets.datarange.DataRange(start="F2", end="F1000000", worksheet=target_worksheet)
+        # dr.apply_format(cell=model_cell)
         recs_ = [
             [
                 str(datetime.datetime.now()),
                 r.get("created_at") if r.get("created_at") is not None else r.get("CreatedAt"),
                 r.get("handle") if r.get("handle") is not None else r.get("Handle"),
-                r.get("author_id") if r.get("author_id") is not None else r.get("UserId"), 
+                "userid_{}".format(r.get("author_id")) if r.get("author_id") is not None else r.get("UserId"), 
                 r.get("lang") if r.get("lang") is not None else r.get("Language"),
-                r.get("id") if r.get("id") is not None else r.get("TweetId"),
+                "id_{}".format(r.get("id")) if r.get("id") is not None else r.get("TweetId"),
                 r.get("public_metrics").get("retweet_count") if r.get("public_metrics") is not None else r.get("Retweets"),
                 r.get("public_metrics").get("reply_count") if r.get("public_metrics") is not None else r.get("Replies"),
                 r.get("public_metrics").get("like_count") if r.get("public_metrics") is not None else r.get("Likes"),
@@ -209,7 +211,10 @@ def add_new_tweets(recent_tweets_):
                 ",".join([x.get("username") for x in r.get("entities").get("mentions")]) if (r.get("entities") is not None and "mentions" in r.get("entities")) else "" if r.get("entities") is not None else r.get("Mentions"),
                 ",".join([x.get("expanded_url") for x in r.get("entities").get("urls")]) if (r.get("entities") is not None and "urls" in r.get("entities")) else "" if r.get("entities") is not None else r.get("URLs"),
                 ",".join([x.get("tag") for x in r.get("entities").get("hashtags")]) if (r.get("entities") is not None and "hashtags" in r.get("entities")) else "" if r.get("entities") is not None else r.get("Hashtags"),
-                "RT " == str(r.get("text"))[:3] if r.get("text") is not None else "RT " == str(r.get("Tweet"))[:3]
+                "RT " == str(r.get("text"))[:3] if r.get("text") is not None else "RT " == str(r.get("Tweet"))[:3],
+                "https://twitter.com/{}/status/{}".format(r.get("handle") if r.get("handle") is not None else r.get("Handle"), r.get("id") if r.get("id") is not None else r.get("TweetId").replace("id_", "")),
+                r.get("media")[0].get("type") if (r.get("media") is not None and len(r.get("media")) > 0) else r.get("Media Type"),
+                (r.get("media")[0].get("preview_image_url") if r.get("media")[0].get("preview_image_url") is not None else r.get("media")[0].get("url")) if (r.get("media") is not None and len(r.get("media")) > 0) else r.get("Media Link")
             ] for r in recent_tweets_
         ]
         recs_.insert(0, recs)
@@ -232,15 +237,15 @@ def add_new_mentions(recent_twitter_mentions_):
             target_worksheet = get_sheet().add_worksheet(sheet_name)
         else:
             target_worksheet = get_sheet().worksheet_by_title(sheet_name)
-        model_cell = pygsheets.Cell("A1")
-        model_cell.set_number_format(
-            format_type = pygsheets.FormatType.NUMBER,
-            pattern = "0"
-        )
-        dr = pygsheets.datarange.DataRange(start="D2", end="D1000000", worksheet=target_worksheet)
-        dr.apply_format(cell=model_cell)
-        dr = pygsheets.datarange.DataRange(start="F2", end="F1000000", worksheet=target_worksheet)
-        dr.apply_format(cell=model_cell)
+        # model_cell = pygsheets.Cell("A1")
+        # model_cell.set_number_format(
+        #     format_type = pygsheets.FormatType.NUMBER,
+        #     pattern = "0"
+        # )
+        # dr = pygsheets.datarange.DataRange(start="D2", end="D1000000", worksheet=target_worksheet)
+        # dr.apply_format(cell=model_cell)
+        # dr = pygsheets.datarange.DataRange(start="F2", end="F1000000", worksheet=target_worksheet)
+        # dr.apply_format(cell=model_cell)
         recs = [
             "Date",
             "CreatedAt",
@@ -257,16 +262,19 @@ def add_new_mentions(recent_twitter_mentions_):
             "URLs",
             "Hashtags",
             "IsRetweet",
-            "Sentiment"
+            "Sentiment",
+            "Link",
+            "Media Type",
+            "Media Link"
         ]
         recs_ = [
             [
                 str(datetime.datetime.now()),
                 r.get("created_at") if r.get("created_at") is not None else r.get("CreatedAt"),
                 r.get("handle") if r.get("handle") is not None else r.get("Handle"),
-                r.get("author_id") if r.get("author_id") is not None else r.get("UserId"), 
+                "userid_{}".format(r.get("author_id")) if r.get("author_id") is not None else r.get("UserId"), 
                 r.get("lang") if r.get("lang") is not None else r.get("Language"),
-                r.get("id") if r.get("id") is not None else r.get("TweetId"),
+                "id_{}".format(r.get("id")) if r.get("id") is not None else r.get("TweetId"),
                 r.get("public_metrics").get("retweet_count") if r.get("public_metrics") is not None else r.get("Retweets"),
                 r.get("public_metrics").get("reply_count") if r.get("public_metrics") is not None else r.get("Replies"),
                 r.get("public_metrics").get("like_count") if r.get("public_metrics") is not None else r.get("Likes"),
@@ -276,7 +284,10 @@ def add_new_mentions(recent_twitter_mentions_):
                 ",".join([x.get("expanded_url") for x in r.get("entities").get("urls")]) if (r.get("entities") is not None and "urls" in r.get("entities")) else "" if r.get("entities") is not None else r.get("URLs"),
                 ",".join([x.get("tag") for x in r.get("entities").get("hashtags")]) if (r.get("entities") is not None and "hashtags" in r.get("entities")) else "" if r.get("entities") is not None else r.get("Hashtags"),
                 "RT " == str(r.get("text"))[:3] if r.get("text") is not None else "RT " == str(r.get("Tweet"))[:3],
-                r.get("sentiment") if r.get("sentiment") is not None else (r.get("Sentiment") if r.get("Sentiment") is not None else 0)
+                r.get("sentiment") if r.get("sentiment") is not None else (r.get("Sentiment") if r.get("Sentiment") is not None else 0),
+                "https://twitter.com/{}/status/{}".format(r.get("handle") if r.get("handle") is not None else r.get("Handle"), r.get("id") if r.get("id") is not None else r.get("TweetId").replace("id_", "")),
+                r.get("media")[0].get("type") if (r.get("media") is not None and len(r.get("media")) > 0) else r.get("Media Type"),
+                (r.get("media")[0].get("preview_image_url") if r.get("media")[0].get("preview_image_url") is not None else r.get("media")[0].get("url")) if (r.get("media") is not None and len(r.get("media")) > 0) else r.get("Media Link")
             ] for r in recent_twitter_mentions_
         ]
         recs_.insert(0, recs)
@@ -299,15 +310,15 @@ def add_new_topics(recent_tweets_topics_):
             target_worksheet = get_sheet().add_worksheet(sheet_name)
         else:
             target_worksheet = get_sheet().worksheet_by_title(sheet_name)
-        model_cell = pygsheets.Cell("A1")
-        model_cell.set_number_format(
-            format_type = pygsheets.FormatType.NUMBER,
-            pattern = "0"
-        )
-        dr = pygsheets.datarange.DataRange(start="H2", end="H1000000", worksheet=target_worksheet)
-        dr.apply_format(cell=model_cell)
-        dr = pygsheets.datarange.DataRange(start="F2", end="F1000000", worksheet=target_worksheet)
-        dr.apply_format(cell=model_cell)
+        # model_cell = pygsheets.Cell("A1")
+        # model_cell.set_number_format(
+        #     format_type = pygsheets.FormatType.NUMBER,
+        #     pattern = "0"
+        # )
+        # dr = pygsheets.datarange.DataRange(start="H2", end="H1000000", worksheet=target_worksheet)
+        # dr.apply_format(cell=model_cell)
+        # dr = pygsheets.datarange.DataRange(start="F2", end="F1000000", worksheet=target_worksheet)
+        # dr.apply_format(cell=model_cell)
         recs = [
             "Date",
             "CreatedAt",
@@ -326,18 +337,21 @@ def add_new_topics(recent_tweets_topics_):
             "URLs",
             "Hashtags",
             "IsRetweet",
-            "Sentiment"
+            "Sentiment",
+            "Link",
+            "Media Type",
+            "Media Link"
         ]
         recs_ = [
             [
                 str(datetime.datetime.now()),
                 r.get("created_at") if r.get("created_at") is not None else r.get("CreatedAt"),
                 r.get("keyword") if r.get("keyword") is not None else r.get("Topic"),
-                r.get("username") if r.get("handle") is not None else r.get("Handle"),
-                r.get("name") if r.get("handle") is not None else r.get("Name"),
-                r.get("author_id") if r.get("author_id") is not None else r.get("UserId"), 
+                "userid_" + r.get("username") if r.get("username") is not None else r.get("Handle"),
+                r.get("name") if r.get("name") is not None else r.get("Name"),
+                "userid_{}".format(r.get("author_id")) if r.get("author_id") is not None else r.get("UserId"), 
                 r.get("lang") if r.get("lang") is not None else r.get("Language"),
-                r.get("id") if r.get("id") is not None else r.get("TweetId"),
+                "id_{}".format(r.get("id")) if r.get("id") is not None else r.get("TweetId"),
                 r.get("public_metrics").get("retweet_count") if r.get("public_metrics") is not None else r.get("Retweets"),
                 r.get("public_metrics").get("reply_count") if r.get("public_metrics") is not None else r.get("Replies"),
                 r.get("public_metrics").get("like_count") if r.get("public_metrics") is not None else r.get("Likes"),
@@ -347,7 +361,10 @@ def add_new_topics(recent_tweets_topics_):
                 ",".join([x.get("expanded_url") for x in r.get("entities").get("urls")]) if (r.get("entities") is not None and "urls" in r.get("entities")) else "" if r.get("entities") is not None else r.get("URLs"),
                 ",".join([x.get("tag") for x in r.get("entities").get("hashtags")]) if (r.get("entities") is not None and "hashtags" in r.get("entities")) else "" if r.get("entities") is not None else r.get("Hashtags"),
                 "RT " == str(r.get("text"))[:3] if r.get("text") is not None else "RT " == str(r.get("Tweet"))[:3],
-                r.get("sentiment") if r.get("sentiment") is not None else (r.get("Sentiment") if r.get("Sentiment") is not None else 0)
+                r.get("sentiment") if r.get("sentiment") is not None else (r.get("Sentiment") if r.get("Sentiment") is not None else 0),
+                "https://twitter.com/{}/status/{}".format(r.get("username") if r.get("username") is not None else r.get("Handle"), r.get("id") if r.get("id") is not None else r.get("TweetId").replace("id_", "")),
+                r.get("media")[0].get("type") if (r.get("media") is not None and len(r.get("media")) > 0) else r.get("Media Type"),
+                (r.get("media")[0].get("preview_image_url") if r.get("media")[0].get("preview_image_url") is not None else r.get("media")[0].get("url")) if (r.get("media") is not None and len(r.get("media")) > 0) else r.get("Media Link")
             ] for r in recent_tweets_topics_
         ]
         recs_.insert(0, recs)
@@ -457,4 +474,5 @@ def get_inputs():
         listening_topics = [x[2] for x in current_data[1:] if len(x[2]) > 0]
         target_youtube_channels = [x[3] for x in current_data[1:] if len(x[3]) > 0]
         return True, target_handles, listening_handles, listening_topics, target_youtube_channels
+
 client = get_client()
